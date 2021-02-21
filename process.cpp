@@ -20,31 +20,21 @@
 EXTERN_C NTSTATUS NTAPI NtSuspendProcess(IN HANDLE ProcessHandle);
 EXTERN_C NTSTATUS NTAPI NtResumeProcess(IN HANDLE ProcessHandle);
 
-#if ( _MSC_VER || __MINGW32__ || __MSVCRT__ )
-	void init_locale() {
-		if (
-			_setmode(_fileno(stdout), _O_U16TEXT) != -1 ||
-			_setmode(_fileno(stdin), _O_U16TEXT)  != -1 ||
-			_setmode(_fileno(stderr), _O_U16TEXT) !=-1
-		)
-		{
-			CONSOLE_FONT_INFOEX cfi;
-			GetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), false, &cfi);
-			wcscpy_s(cfi.FaceName, L"Lucida Console");
-			SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), false, &cfi);
-		}else
-			exit(0xAAAAAAAAAAAA);
-	}
-#else
-	void init_locale() {
-		constexpr char locale_name[] = "";
-		setlocale(LC_ALL, locale_name);
-		std::locale::global(std::locale(locale_name));
-		std::wcin.imbue(std::locale());
-		std::wcout.imbue(std::locale());
-	}
+void init_locale() {
+	if (
+		_setmode(_fileno(stdout), _O_U16TEXT) != -1 ||
+		_setmode(_fileno(stdin), _O_U16TEXT)  != -1 ||
+		_setmode(_fileno(stderr), _O_U16TEXT) !=-1
+	)
+	{
+		CONSOLE_FONT_INFOEX cfi;
+		GetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), false, &cfi);
+		wcscpy_s(cfi.FaceName, L"Lucida Console");
+		SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), false, &cfi);
+	}else
+		exit(0xAAAAAAAAAAAA);
+}
 
-#endif
 typedef LONG(NTAPI* _NtSuspendProcess)(IN HANDLE ProcessHandle);
 
 void help_commads() {
