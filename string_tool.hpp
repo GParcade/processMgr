@@ -78,6 +78,12 @@ bool exist(std::vector<T> vector, std::vector <T> scan_value) {
 	return 0;
 }
 
+std::wstring to_low(std::wstring str) {
+	std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+	return str;
+}
+
+
 template<typename T>
 class shared_str {
 	static std::list<T> shared;

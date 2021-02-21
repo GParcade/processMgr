@@ -19,6 +19,7 @@ struct process_info {
 	std::vector<DWORD> childs_id;
 	shared_str<std::wstring> summoner_name;
 	shared_str<std::wstring> summoner_domain;
+	size_t threads=0;
 	process_info() {}
 	process_info(const process_info& copy) {
 		session_id = copy.session_id;
@@ -27,12 +28,12 @@ struct process_info {
 		summoner_name = copy.summoner_name;
 		summoner_domain = copy.summoner_domain;
 		childs_id = copy.childs_id;
+		threads = copy.threads;
 	}
 	process_info(DWORD session, DWORD proc_id, std::wstring proces_name, PSID summoner_psid) {
 		session_id = session;
 		process_id = proc_id;
 		proc_name = proces_name;
-		childs_id = windows_enum::get_childs_from_pid(process_id);
 		{
 			wchar_t user[80], domain[80];
 			DWORD cbUser = 80, cbDomain = 80;
@@ -50,6 +51,7 @@ struct process_info_no_child {
 	shared_str<std::wstring> proc_name;
 	shared_str<std::wstring> summoner_name;
 	shared_str<std::wstring> summoner_domain;
+	size_t threads=0;
 	process_info_no_child() {}
 	process_info_no_child(const process_info_no_child& copy) {
 		session_id = copy.session_id;
@@ -57,6 +59,7 @@ struct process_info_no_child {
 		proc_name = copy.proc_name;
 		summoner_name = copy.summoner_name;
 		summoner_domain = copy.summoner_domain;
+		threads = copy.threads;
 	}
 	process_info_no_child(const process_info& copy) {
 		session_id = copy.session_id;
@@ -64,6 +67,7 @@ struct process_info_no_child {
 		proc_name = copy.proc_name;
 		summoner_name = copy.summoner_name;
 		summoner_domain = copy.summoner_domain;
+		threads = copy.threads;
 	}
 	process_info_no_child(DWORD session, DWORD proc_id, std::wstring proces_name, PSID summoner_psid) {
 		session_id = session;
@@ -140,31 +144,21 @@ struct process_three_info {
 
 
 namespace windows_enum {
-	namespace {
-		std::vector<std::wstring> res;
+	std::vector<PROCESSENTRY32> enum_proceses_for_childs() {
 
-		int WINAPI enum_window(HWND hWnd, LPARAM) {
-			wchar_t buffer[300];
-			GetWindowTextW(hWnd, buffer, 300);
-			res.push_back(buffer);
-			return 0;
-		}
-	}
-	std::vector<DWORD> get_childs_from_pid(DWORD ppid) {
-		
-		std::vector<DWORD> pids;
+		std::vector<PROCESSENTRY32> pids;
 		HANDLE hp = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 		PROCESSENTRY32 pe = { 0 };
 		pe.dwSize = sizeof(PROCESSENTRY32);
 		if (Process32First(hp, &pe)) {
 			do {
-				if (pe.th32ParentProcessID == ppid) 
-					pids.push_back(pe.th32ProcessID);
+				pids.push_back(pe);
 			} while (Process32Next(hp, &pe));
 		}
 		CloseHandle(hp);
 		return pids;
 	}
+
 	//use (WTS_PROCESS_INFOW& one_process, size_t index) for interate_func and (size_t total_process) for pre_run_func or nullptr
 	template<class _FN,class _FN2>
 	void enum_all_process(_FN interate_func,_FN2 pre_run_func = nullptr) {
@@ -198,6 +192,7 @@ namespace windows_enum {
 		}
 	}
 
+
 	//use (THREADENTRY32& one_thread)
 	template<class _FN>
 	void enum_all_threads_slow(_FN interate_func) {
@@ -207,9 +202,7 @@ namespace windows_enum {
 			te.dwSize = sizeof(te);
 			if (Thread32First(h, &te)) {
 				do {
-					if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID))
 						interate_func(te);
-					te.dwSize = sizeof(te);
 				} while (Thread32Next(h, &te));
 			}
 			CloseHandle(h);
@@ -217,7 +210,26 @@ namespace windows_enum {
 	}
 
 
+	//use (THREADENTRY32& one_thread)
+	template<class _FN>
+	void enum_all_threads(_FN interate_func) {
+		std::vector<THREADENTRY32> threads;
+		enum_all_threads_slow([&threads](THREADENTRY32& tmp) {
+			threads.push_back(tmp);
+			}
+		);
+		for_thread(threads, [](THREADENTRY32& proc, size_t) {interate_func(proc); });
+	}
 
+	//use (HWND& one_windows)
+	template<class _FN>
+	void enum_all_windows(_FN interate_func){
+		HWND hCurWnd = NULL;
+		do {
+			hCurWnd = FindWindowEx(NULL, hCurWnd, NULL, NULL);
+			interate_func(hCurWnd);
+		} while (hCurWnd != NULL);
+	}
 
 	template<class process_type>
 	std::vector<process_type> get_process_list() {
@@ -231,44 +243,110 @@ namespace windows_enum {
 					interate.pUserSid
 				};
 			},
-			
+
 			[&result](size_t set_size) {
 				result.resize(set_size);
 			}
+			);
+		std::vector<THREADENTRY32> threads;
+		enum_all_threads_slow([&threads](THREADENTRY32& tmp) {
+			threads.push_back(tmp);
+			}
 		);
+		for_thread(result, [threads](process_type& proc, size_t) {
+			for (auto& interate : threads)
+				if (proc.process_id == interate.th32OwnerProcessID)
+					proc.threads++;
+			}
+		);
+		if constexpr(std::is_same<process_type, process_info>::value == true) {
+			auto tmp = enum_proceses_for_childs();
+			for_thread(result, [tmp](process_type& proc, size_t) {
+				for (auto& interate : tmp)
+					if (proc.process_id == interate.th32ParentProcessID)
+						proc.childs_id.push_back(interate.th32ProcessID);
+				}
+			);
+		}
 		return result;
 	}
 
-	
 
-	std::vector<std::wstring>& windows_enum(uint64_t proc_id) {
-		res.clear();
-		if (EnumThreadWindows(
-			proc_id,
-			&enum_window,
-			NULL
-		)) ;
-		return res;
+
+	namespace {
+		void GetAllWindowsFromProcessID(DWORD PID, std::vector<std::wstring>& res)
+		{
+			res.clear();
+			HWND hCurWnd = NULL;
+			do {
+				hCurWnd = FindWindowEx(NULL, hCurWnd, NULL, NULL);
+				DWORD dwProcessID = 0;
+				wchar_t buffer[300];
+				GetWindowThreadProcessId(hCurWnd, &dwProcessID);
+				if (dwProcessID == PID) {
+					GetWindowTextW(hCurWnd, buffer, 300);
+					res.push_back(buffer);
+				}
+			} while (hCurWnd != NULL);
+		}
 	}
-	bool windows_exist(uint64_t proc_id, std::wstring str) {
-		windows_enum(proc_id);
+
+	bool windows_exist(uint64_t proc_id, std::wstring str, std::vector<HWND> windows) {
+		std::vector<std::wstring> res;
+		for (auto& inter : windows) {
+			wchar_t buffer[300];
+			DWORD pid;
+			GetWindowThreadProcessId(inter, &pid);
+			if (pid == proc_id) {
+				GetWindowTextW(inter, buffer, 300);
+				res.push_back(buffer);
+			}
+		}
 		return exist(res, str);
 	}
-	bool windows_exist_similar(uint64_t proc_id, std::wstring str, size_t threshold = 0) {
-		windows_enum(proc_id);
+	bool windows_exist_similar(uint64_t proc_id, std::wstring str, std::vector<HWND> windows, size_t threshold = 0) {
+		std::vector<std::wstring> res;
+		for (auto& inter : windows) {
+			wchar_t buffer[300];
+			DWORD pid;
+			GetWindowThreadProcessId(inter, &pid);
+			if (pid == proc_id) {
+				GetWindowTextW(inter, buffer, 300);
+				res.push_back(buffer);
+			}
+		}
 		return contain_similar(res, str, threshold);
 	}
 
-	bool windows_contain(uint64_t proc_id, std::vector<std::wstring>& strs) {
-		windows_enum(proc_id);
+	bool windows_contain(uint64_t proc_id, std::vector<std::wstring>& strs, std::vector<HWND> windows) {
+		std::vector<std::wstring> res;
+		for (auto& inter : windows) {
+			wchar_t buffer[300];
+			DWORD pid;
+			GetWindowThreadProcessId(inter, &pid);
+			if (pid == proc_id) {
+				GetWindowTextW(inter, buffer, 300);
+				res.push_back(buffer);
+			}
+		}
 		return exist(res, strs);
 	}
-	bool windows_contain_similar(uint64_t proc_id, std::vector<std::wstring>& strs, size_t threshold = 0) {
-		windows_enum(proc_id);
+	bool windows_contain_similar(uint64_t proc_id, std::vector<std::wstring>& strs,std::vector<HWND> windows, size_t threshold = 0) {
+		std::vector<std::wstring> res;
+		for (auto& inter : windows) {
+			wchar_t buffer[300];
+			DWORD pid;
+			GetWindowThreadProcessId(inter, &pid);
+			if (pid == proc_id) {
+				GetWindowTextW(inter, buffer, 300);
+				res.push_back(buffer);
+			}
+		}
 		for (auto& str : strs)
 			if (contain_similar(res, str, threshold))return 1;
 		return 0;
 	}
+
 }
 namespace windows {
 	size_t theads_count(DWORD PID) {

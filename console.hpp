@@ -27,6 +27,9 @@ constexpr std::basic_ostream< CharT, Traits >& reset_color(std::basic_ostream< C
     return os << "\033[0m";
 }
 
+std::wstring reset_color() {
+    return L"\033[0m";
+}
 inline std::wstring rgb_color_text(uint8_t r, uint8_t g, uint8_t b) {
     return L"\033[" + (L"38;2;" + std::to_wstring(r) + L";" + std::to_wstring(g) + L";" + std::to_wstring(b) + L"m");
 }
