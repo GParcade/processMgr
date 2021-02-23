@@ -29,9 +29,28 @@ std::wstring reset_color() {
     return L"\033[0m";
 }
 
+inline std::wstring bold_text() {
+    return L"\033[1m";
+}
+
 inline std::wstring rgb_color_text(uint8_t r, uint8_t g, uint8_t b) {
     return L"\033[" + (L"38;2;" + std::to_wstring(r) + L";" + std::to_wstring(g) + L";" + std::to_wstring(b) + L"m");
 }
+void unique_rgb_color_ints(std::wstring str,uint8_t& r,uint8_t& g,uint8_t& b) {
+    uint8_t rgb[3]{ 0 };
+    char rgp_pos = 0;
+    for (auto& cha : str) {
+        for (size_t i = 0; i < sizeof(cha); i++) {
+            rgb[rgp_pos++] ^= ((char*)&cha)[i];
+            if (rgp_pos == 3)rgp_pos = 0;
+        }
+    }
+    //smooth
+    r = rgb[0] % 100 + 128;
+    g = rgb[1] % 100 + 128;
+    b = rgb[2] % 100 + 128;
+}
+
 inline std::wstring unique_rgb_color(std::wstring str) {
     //xor hash
     uint8_t rgb[3]{0};
@@ -55,22 +74,22 @@ inline std::wstring unique_rgb_color(int64_t i) {
 }
 
 
-void calculate_max_size(const char* value, size_t& len) {
-    size_t tmp = std::string(value).size();
+void calculate_max_size(const char* value, size_t& len, size_t add = 0) {
+    size_t tmp = std::string(value).size() + add;
     if (len < tmp) len = tmp;
 }
-void calculate_max_size(const wchar_t* value, size_t& len) {
-    size_t tmp = std::wstring(value).size();
+void calculate_max_size(const wchar_t* value, size_t& len, size_t add = 0) {
+    size_t tmp = std::wstring(value).size() + add;
     if (len < tmp) len = tmp;
 }
 template<typename T>
-void calculate_max_size(T& value, size_t& len) {
+void calculate_max_size(T& value, size_t& len,size_t add=0) {
     size_t tmp;
     if constexpr (std::is_same<T, std::string>::value)
-        tmp = value.size();
+        tmp = value.size()+add;
     else if constexpr (std::is_same<T, std::wstring>::value)
-        tmp = value.size();
+        tmp = value.size() + add;
     else
-        tmp = std::to_string(value).size();
+        tmp = std::to_string(value).size() + add;
     if (len < tmp) len = tmp;
 }
