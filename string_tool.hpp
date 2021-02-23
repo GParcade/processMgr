@@ -2,6 +2,7 @@
 #include <vector>
 #include <mutex>
 #include <list>
+#include "console.hpp"
 template<typename T>
 bool similar(T& strcmp0, T& strcmp1, size_t threshold = 0) {
 	size_t total_sybols0 = strcmp0.size();
@@ -84,13 +85,51 @@ std::wstring to_low(std::wstring str) {
 }
 
 
+
+struct colored_wchar {
+	std::wstring chas;
+	uint8_t Red		= 255;
+	uint8_t Green	= 255;
+	uint8_t Blue	= 255;
+	colored_wchar(){}
+	colored_wchar(const wchar_t scha) { chas = scha; }
+	colored_wchar(const std::wstring str) { unique_rgb_color_ints(str, Red, Green, Blue); }
+	colored_wchar(const std::wstring scha,const std::wstring str){ chas = scha; unique_rgb_color_ints(str, Red, Green, Blue); }
+	colored_wchar(const std::wstring scha, uint8_t r,uint8_t g,uint8_t b) {
+		chas = scha;
+		Red = r;
+		Green = g;
+		Blue = b;
+	}
+	colored_wchar(const colored_wchar& scha) {
+		chas = scha.chas;
+		Red = scha.Red;
+		Green = scha.Green;
+		Blue = scha.Blue;
+	}
+	operator std::wstring()const {
+		return rgb_color_text(Red, Green, Blue) + chas + reset_color();
+	}
+};
+std::wostream& operator<<(std::wostream& stream, const colored_wchar& cha) {
+	return stream << rgb_color_text(cha.Red, cha.Green, cha.Blue) << cha.chas.c_str() << reset_color;
+}
+typedef std::vector<colored_wchar> colored_str;
+
+std::wostream& operator<<(std::wostream& stream, const colored_str& chars) {
+	for (auto& i : chars) {
+		stream << i;
+	}
+	return stream;
+}
+
 template<typename T>
 class shared_str {
 	static std::list<T> shared;
-	static std::mutex test_mutex;
+	static std::mutex mutex;
 	T* tmp=nullptr;
 	void put(const T& cmp) {
-		std::lock_guard<std::mutex> lock(test_mutex);
+		std::lock_guard<std::mutex> lock(mutex);
 		for (T& find : shared)
 			if (find == cmp) {
 				tmp = &find;
@@ -136,4 +175,4 @@ public:
 template<typename T>
 std::list<T> shared_str<T>::shared= std::list<T>();
 template<typename T>
-std::mutex shared_str<T>::test_mutex;
+std::mutex shared_str<T>::mutex;
