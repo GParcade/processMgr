@@ -176,6 +176,7 @@ namespace windows_enum {
 		}
 	}
 
+	//use (WTS_PROCESS_INFOW& one_process, size_t index) for interate_func and (size_t total_process) for pre_run_func or nullptr
 	template<class _FN,class _FN2>
 	void enum_all_process_slow(_FN interate_func, _FN2 pre_run_func = nullptr) {
 		WTS_PROCESS_INFOW* pWPIs = NULL;
@@ -268,6 +269,8 @@ namespace windows_enum {
 				}
 			);
 		}
+		if (result[0].process_id == 0)
+			result[0].proc_name = L"Windows Core";
 		return result;
 	}
 
