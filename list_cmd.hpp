@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -6,6 +6,8 @@
 #include "windows_enum.hpp"
 #include "filter.hpp"
 #include <psapi.h>
+#include "object_windows.hpp"
+#include "user_tool.hpp"
 namespace list_cmd {
 
 	class info_data {
@@ -26,7 +28,7 @@ namespace list_cmd {
 
 			info_data(process_info_no_child proc) {
 				try{
-				Process hThread(Process::wFLAG_ALL_ACCESS, procID);
+					Process hThread(THREAD_ALL_ACCESS, proc.process_id);
 					BOOL result = GetProcessMemoryInfo(hThread,&memDetals,sizeof(memDetals));
 					BOOL tmp_bool;
 					threads_count = proc.threads;
@@ -79,13 +81,19 @@ namespace list_cmd {
 
 			info_data(std::vector<process_info>& list, process_info check) {
 				*this = { check };
+				size_t old_size;
 				if (list.size()) {
 					if (check.childs_id.size()) {
 						childs = std::shared_ptr<std::vector<info_data>>(new std::vector<info_data>);
+					right_cycle:
+						old_size = list.size();
 						for (int64_t i = list.size() - 1; i >= 0; i--) {
 							if (contain_value(check.childs_id, list[i].process_id)) {
-								childs->push_back({ list[i] });
+								process_info tmp(list[i]);
 								list.erase(list.begin() + i);
+								old_size = list.size();
+								childs->push_back({ list, tmp });
+								if (old_size != list.size()) goto right_cycle;
 							}
 						}
 					}
@@ -132,17 +140,11 @@ namespace list_cmd {
 		std::sort(con.begin(), con.end(), [last](info_data& val_0, info_data& val_1) {
 			if (val_0.childs) {
 				if (val_0.childs->size())
-					std::sort(val_0.childs->begin(), val_0.childs->end(), [last](info_data& val_0, info_data& val_1) {
-							return last(val_0, val_1);
-						}
-					);
+					sort_with_childs(*val_0.childs, last);
 			}
 			if (val_1.childs) {
 				if(val_1.childs->size())
-					std::sort(val_1.childs->begin(), val_1.childs->end(), [last](info_data& val_0, info_data& val_1) {
-							return last(val_0, val_1);
-						}
-					);
+					sort_with_childs(*val_1.childs, last);
 			}
 			return last(val_0, val_1);
 			}
@@ -385,7 +387,6 @@ namespace list_cmd {
 		std::vector<info_data> all;
 #define Unique_color_s(str) (std::wstring(out_flag.use_color ? unique_rgb_color((str)) : L"") + str + reset_color())
 #define Unique_color(str) (std::wstring(out_flag.use_color ? unique_rgb_color((str)) : L"") + std::to_wstring(str) + reset_color())
-#define auto_fix_pos (pos_offset ? ([&pos_offset](size_t rem){pos_offset=0;return rem;}(pos_offset)) : 0)
 
 		void print(std::wstring str) {
 			wprintf(str.c_str());
@@ -393,29 +394,71 @@ namespace list_cmd {
 		void print(int64_t integer) {
 			wprintf(std::to_wstring(integer).c_str());
 		}
-		void print(out_flags& out_flag, console_pos& pos, info_data& data,size_t pos_offset=0) {
-			if(out_flag.pid)						  {print(data.procID);															print(set_pos_in_line(pos.pid_len + auto_fix_pos));}
-			if(out_flag.nam)						  {print(Unique_color_s(data.procName));										print(set_pos_in_line(pos.nam_len + auto_fix_pos));}
-			if(out_flag.summoner_name)				  {print(Unique_color_s(data.summoner_name)); 									print(set_pos_in_line(pos.unam_len + auto_fix_pos));}
-			if(out_flag.summoner_domain)			  {print(Unique_color_s(data.summoner_domain));									print(set_pos_in_line(pos.udom_len + auto_fix_pos));}
-			if(out_flag.session)					  {print(Unique_color(data.session));											print(set_pos_in_line(pos.ses_len + auto_fix_pos));}
-			if(out_flag.threads)					  {print(Unique_color(data.threads_count));										print(set_pos_in_line(pos.thread_count + auto_fix_pos));}
-			if(out_flag.flags)						  {print(Unique_color_s(data.is_critical)); print(Unique_color_s(data.is_above_WOW64_emulator)); print(Unique_color_s(data.is_under_the_grip_of_a_debugger)); print(Unique_color_s(data.is_evaluated)); print(set_pos_in_line(pos.flags + pos_offset));}
-			if(out_flag.work_mem)					  {print(Unique_color(data.memDetals.WorkingSetSize));  						print(set_pos_in_line( pos.work_mem + auto_fix_pos));}
-			if(out_flag.peak_work_mem)				  {print(Unique_color(data.memDetals.PeakWorkingSetSize));  					print(set_pos_in_line( pos.peak_work+ auto_fix_pos));}
-			if(out_flag.page_faults)				  {print(Unique_color(data.memDetals.PageFaultCount));  						print(set_pos_in_line( pos.page_faults + auto_fix_pos));}
-			if(out_flag.page_file_use)				  {print(Unique_color(data.memDetals.PagefileUsage));  							print(set_pos_in_line( pos.page_file_use + auto_fix_pos));}
-			if(out_flag.peak_page_file_use)			  {print(Unique_color(data.memDetals.PeakPagefileUsage));  						print(set_pos_in_line( pos.peak_page_file_use + auto_fix_pos));}
-			if(out_flag.quota_non_paged_pool_use)	  {print(Unique_color(data.memDetals.QuotaNonPagedPoolUsage));  				print(set_pos_in_line( pos.qota_non_paged_pool_file_use + auto_fix_pos));}
-			if(out_flag.quota_paged_pool_use)		  {print(Unique_color(data.memDetals.QuotaPagedPoolUsage));  					print(set_pos_in_line( pos.qota_paged_pool_file_use + auto_fix_pos));}
-			if(out_flag.quota_non_peak_paged_pool_use){print(Unique_color(data.memDetals.QuotaPeakNonPagedPoolUsage));  			print(set_pos_in_line( pos.qota_non_peak_paged_pool_file_use + auto_fix_pos));}
-			if(out_flag.quota_peak_paged_pool_use)	  {print(Unique_color(data.memDetals.QuotaPeakPagedPoolUsage));  				print(set_pos_in_line( pos.qota_peak_paged_pool_file_use + auto_fix_pos));}
+
+		void print(out_flags& out_flag, console_pos& pos, info_data& data, colored_str prefix = colored_str()) {
+			if(out_flag.pid)						  {print(data.procID);															print(set_pos_in_line(pos.pid_len ));}
+			if(out_flag.nam)						  {std::wcout << prefix; print(Unique_color_s(data.procName));					print(set_pos_in_line(pos.nam_len ));}
+			if(out_flag.summoner_name)				  {print(Unique_color_s(data.summoner_name)); 									print(set_pos_in_line(pos.unam_len));}
+			if(out_flag.summoner_domain)			  {print(Unique_color_s(data.summoner_domain));									print(set_pos_in_line(pos.udom_len));}
+			if(out_flag.session)					  {print(Unique_color(data.session));			 								print(set_pos_in_line(pos.ses_len));}
+			if(out_flag.threads)					  {print(Unique_color(data.threads_count));										print(set_pos_in_line(pos.thread_count));}
+			if(out_flag.flags)						  {print(Unique_color_s(data.is_critical)); print(Unique_color_s(data.is_above_WOW64_emulator)); print(Unique_color_s(data.is_under_the_grip_of_a_debugger)); print(Unique_color_s(data.is_evaluated)); print(set_pos_in_line(pos.flags));}
+			if(out_flag.work_mem)					  {print(Unique_color(data.memDetals.WorkingSetSize));  						print(set_pos_in_line( pos.work_mem));}
+			if(out_flag.peak_work_mem)				  {print(Unique_color(data.memDetals.PeakWorkingSetSize));  					print(set_pos_in_line( pos.peak_work));}
+			if(out_flag.page_faults)				  {print(Unique_color(data.memDetals.PageFaultCount));  						print(set_pos_in_line( pos.page_faults));}
+			if(out_flag.page_file_use)				  {print(Unique_color(data.memDetals.PagefileUsage));  							print(set_pos_in_line( pos.page_file_use ));}
+			if(out_flag.peak_page_file_use)			  {print(Unique_color(data.memDetals.PeakPagefileUsage));  						print(set_pos_in_line( pos.peak_page_file_use));}
+			if(out_flag.quota_non_paged_pool_use)	  {print(Unique_color(data.memDetals.QuotaNonPagedPoolUsage));  				print(set_pos_in_line( pos.qota_non_paged_pool_file_use));}
+			if(out_flag.quota_paged_pool_use)		  {print(Unique_color(data.memDetals.QuotaPagedPoolUsage));  					print(set_pos_in_line( pos.qota_paged_pool_file_use));}
+			if(out_flag.quota_non_peak_paged_pool_use){print(Unique_color(data.memDetals.QuotaPeakNonPagedPoolUsage));  			print(set_pos_in_line( pos.qota_non_peak_paged_pool_file_use));}
+			if(out_flag.quota_peak_paged_pool_use)	  {print(Unique_color(data.memDetals.QuotaPeakPagedPoolUsage));  				print(set_pos_in_line( pos.qota_peak_paged_pool_file_use));}
 			wprintf(L"\n");
+			if (data.childs) {
+				print_child(out_flag, pos, *data.childs, prefix, data.procName);
+			}
 		}
-#undef auto_fix_pos
+		void print_child(out_flags& out_flag, console_pos& pos, std::vector<info_data>& data, colored_str prefix,std::wstring uniq_clolr) {
+			size_t arr_si = data.size() - 1;
+			colored_str new_prexix = prefix;
+			for (auto& inter : new_prexix) {
+				if (inter.chas == L"├┈")
+					inter.chas = L"│ ";
+				else if(inter.chas == L"└┈")
+					inter.chas = L"  ";
+			}
+			new_prexix.push_back(colored_wchar(L"├┈", uniq_clolr));
+			for (size_t i = 0; i < arr_si; i++)
+				print(out_flag, pos, data[i], new_prexix);
+			new_prexix[new_prexix.size() - 1].chas = L"└┈";
+			print(out_flag, pos, data[data.size()-1], new_prexix);
+		}
 #undef Unique_color
 #undef Unique_color_s
 
+#define auto_fix_pos (add ? ([&add](size_t rem){add=0;return rem;}(add)) : 0)
+		void calculate_max(std::vector<info_data>& arr,out_flags& reguired,console_pos& max_proc,size_t add=0) {
+			for (auto& info : arr) {
+				if (reguired.threads)						calculate_max_size(info.threads_count, max_proc.thread_count);
+				if (reguired.session)						calculate_max_size(info.session, max_proc.ses_len);
+				if (reguired.pid)							calculate_max_size(info.procID, max_proc.pid_len);
+				if (reguired.summoner_name)					calculate_max_size(info.summoner_name, max_proc.unam_len);
+				if (reguired.summoner_domain)				calculate_max_size(info.summoner_domain, max_proc.udom_len);
+				if (reguired.nam)							calculate_max_size(info.procName, max_proc.nam_len, add);
+				if (reguired.page_faults)					calculate_max_size(info.memDetals.PageFaultCount, max_proc.page_faults);
+				if (reguired.page_file_use)					calculate_max_size(info.memDetals.PagefileUsage, max_proc.page_file_use);
+				if (reguired.peak_page_file_use)			calculate_max_size(info.memDetals.PeakPagefileUsage, max_proc.peak_page_file_use);
+				if (reguired.peak_work_mem)					calculate_max_size(info.memDetals.PeakWorkingSetSize, max_proc.peak_work);
+				if (reguired.quota_non_paged_pool_use)		calculate_max_size(info.memDetals.QuotaNonPagedPoolUsage, max_proc.qota_non_paged_pool_file_use);
+				if (reguired.quota_non_peak_paged_pool_use)	calculate_max_size(info.memDetals.QuotaPeakNonPagedPoolUsage, max_proc.qota_non_peak_paged_pool_file_use);
+				if (reguired.quota_paged_pool_use)			calculate_max_size(info.memDetals.QuotaPagedPoolUsage, max_proc.qota_paged_pool_file_use);
+				if (reguired.quota_peak_paged_pool_use)		calculate_max_size(info.memDetals.QuotaPeakPagedPoolUsage, max_proc.qota_peak_paged_pool_file_use);
+				if (reguired.work_mem)						calculate_max_size(info.memDetals.WorkingSetSize, max_proc.work_mem);
+				if (info.childs) 
+					calculate_max(*info.childs, reguired, max_proc, add+2);
+			}
+		}
+
+#undef auto_fix_pos
 	public:
 		void push(process_info_no_child info) {
 			all.push_back(info_data{ info });
@@ -438,43 +481,7 @@ namespace list_cmd {
 			sort_flags sort = config_res.second;
 			bool has_childs=0;
 			{
-				for (auto& info : all) {
-					if (out.threads)					calculate_max_size(info.threads_count,max_proc.thread_count);
-					if (out.session)					calculate_max_size(info.session, max_proc.ses_len);
-					if (out.pid)						calculate_max_size(info.procID,max_proc.pid_len);
-					if (out.summoner_name)				calculate_max_size(info.summoner_name,max_proc.unam_len );
-					if (out.summoner_domain)			calculate_max_size(info.summoner_domain,max_proc.udom_len );
-					if (out.nam)						calculate_max_size(info.procName, max_proc.nam_len);
-					if (out.page_faults)				calculate_max_size(info.memDetals.PageFaultCount, max_proc.page_faults);
-					if (out.page_file_use)				calculate_max_size(info.memDetals.PagefileUsage, max_proc.page_file_use);
-					if (out.peak_page_file_use)			calculate_max_size(info.memDetals.PeakPagefileUsage, max_proc.peak_page_file_use);
-					if (out.peak_work_mem)				calculate_max_size(info.memDetals.PeakWorkingSetSize, max_proc.peak_work);
-					if (out.quota_non_paged_pool_use)	calculate_max_size(info.memDetals.QuotaNonPagedPoolUsage, max_proc.qota_non_paged_pool_file_use);
-					if (out.quota_non_peak_paged_pool_use)calculate_max_size(info.memDetals.QuotaPeakNonPagedPoolUsage, max_proc.qota_non_peak_paged_pool_file_use);
-					if (out.quota_paged_pool_use)		calculate_max_size(info.memDetals.QuotaPagedPoolUsage, max_proc.qota_paged_pool_file_use);
-					if (out.quota_peak_paged_pool_use)	calculate_max_size(info.memDetals.QuotaPeakPagedPoolUsage, max_proc.qota_peak_paged_pool_file_use);
-					if (out.work_mem)					calculate_max_size(info.memDetals.WorkingSetSize, max_proc.work_mem);
-					if (info.childs) {
-						for (auto& info0 : *info.childs) {
-							if (out.threads)					calculate_max_size(info.threads_count, max_proc.thread_count);
-							if (out.session)					calculate_max_size(info.session, max_proc.ses_len);
-							if (out.pid)						calculate_max_size(info.procID, max_proc.pid_len);
-							if (out.summoner_name)				calculate_max_size(info.summoner_name, max_proc.unam_len);
-							if (out.summoner_domain)			calculate_max_size(info.summoner_domain, max_proc.udom_len);
-							if (out.nam)						calculate_max_size(info.procName, max_proc.nam_len);
-							if (out.page_faults)				calculate_max_size(info.memDetals.PageFaultCount, max_proc.page_faults);
-							if (out.page_file_use)				calculate_max_size(info.memDetals.PagefileUsage, max_proc.page_file_use);
-							if (out.peak_page_file_use)			calculate_max_size(info.memDetals.PeakPagefileUsage, max_proc.peak_page_file_use);
-							if (out.peak_work_mem)				calculate_max_size(info.memDetals.PeakWorkingSetSize, max_proc.peak_work);
-							if (out.quota_non_paged_pool_use)	calculate_max_size(info.memDetals.QuotaNonPagedPoolUsage, max_proc.qota_non_paged_pool_file_use);
-							if (out.quota_non_peak_paged_pool_use)calculate_max_size(info.memDetals.QuotaPeakNonPagedPoolUsage, max_proc.qota_non_peak_paged_pool_file_use);
-							if (out.quota_paged_pool_use)		calculate_max_size(info.memDetals.QuotaPagedPoolUsage, max_proc.qota_paged_pool_file_use);
-							if (out.quota_peak_paged_pool_use)	calculate_max_size(info.memDetals.QuotaPeakPagedPoolUsage, max_proc.qota_peak_paged_pool_file_use);
-							if (out.work_mem)					calculate_max_size(info.memDetals.WorkingSetSize, max_proc.work_mem);
-							has_childs = 1;
-						}
-					}
-				}
+				calculate_max(all, out, max_proc);
 				max_proc.flags++;
 				max_proc.nam_len++;
 				max_proc.page_faults++;
@@ -591,9 +598,6 @@ namespace list_cmd {
 
 			for (auto& item : all) {
 				print(out, max_proc, item);
-				if (item.childs) 
-					for(auto& item0 : *item.childs)
-						print(out, max_proc, item0,5);
 			}
 		}
 	};
