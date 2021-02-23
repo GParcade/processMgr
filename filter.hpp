@@ -79,7 +79,7 @@ namespace filter {
 	out:
 		return res_str;
 	}
-#undef block_chars
+#undef not_has_block_chars
 
 
 	struct processed_filter {
