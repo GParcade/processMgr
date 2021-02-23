@@ -413,9 +413,9 @@ namespace list_cmd {
 			if(out_flag.quota_non_peak_paged_pool_use){print(Unique_color(data.memDetals.QuotaPeakNonPagedPoolUsage));  			print(set_pos_in_line( pos.qota_non_peak_paged_pool_file_use));}
 			if(out_flag.quota_peak_paged_pool_use)	  {print(Unique_color(data.memDetals.QuotaPeakPagedPoolUsage));  				print(set_pos_in_line( pos.qota_peak_paged_pool_file_use));}
 			wprintf(L"\n");
-			if (data.childs) {
-				print_child(out_flag, pos, *data.childs, prefix, data.procName);
-			}
+			if (data.childs)
+				if (data.childs->size())
+					print_child(out_flag, pos, *data.childs, prefix, data.procName);
 		}
 		void print_child(out_flags& out_flag, console_pos& pos, std::vector<info_data>& data, colored_str prefix,std::wstring uniq_clolr) {
 			size_t arr_si = data.size() - 1;
