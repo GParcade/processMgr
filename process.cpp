@@ -364,13 +364,13 @@ namespace freeze_cmd {
 }
 
 void summon(std::wstring options,std::wstring privlegies) {
-	if (privlegies == L"a" || privlegies == L"A") 
+	if (privlegies == L"a" || privlegies == L"A")
 		ShellExecuteW(nullptr, L"runas", options.c_str(), NULL, NULL, SW_RESTORE);
 	//else if(privlegies == L"u" || privlegies == L"U") {
 	//	if(_wsystem((L"RUNAS /trustlevel:0x20000 " + options).c_str())) 
 	//		ShellExecuteW(nullptr, L"open", options.c_str(), NULL, NULL, SW_RESTORE);
 	//}
-	else 
+	else
 		ShellExecuteW(nullptr, L"open", options.c_str(), NULL, NULL, SW_RESTORE);
 }
 
@@ -386,7 +386,7 @@ void run_cmd(std::vector<std::wstring>& cmds) {
 	else if (cmds[0] == L"freezeF") freeze_cmd::freezeF(cmds[1]);
 	else if (cmds[0] == L"unfreezeF") freeze_cmd::unfreezeF(cmds[1]);
 	else {
-		std::cout <<
+		std::wcout <<
 			"Invalid argument, not found command\n";
 		help();
 	}
