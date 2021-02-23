@@ -2,24 +2,24 @@
 #include <Windows.h>
 #include <aclapi.h>
 #include <string>
+#include "object_windows.hpp"
 namespace user {
 
 	PSID current_psid() {
-		HANDLE hTok = nullptr;
-		PSID res = nullptr;
-		if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hTok)) {
-			LPBYTE buf = nullptr;
+		try {
+			ProcessToken hTok(GetCurrentProcess(), ProcessToken::wFLAG_QUERY);
 			DWORD  dwSize = 0;
-			GetTokenInformation(hTok, TokenUser, nullptr, 0, &dwSize);
-			if (dwSize)
-				buf = (LPBYTE)LocalAlloc(LPTR, dwSize);
+			try {
+				hTok.GetInformation(TokenUser, nullptr, 0, &dwSize);
+			}catch(...){}
+			LocalMem<BYTE> buf(LPTR, dwSize);
 
-			if (GetTokenInformation(hTok, TokenUser, buf, dwSize, &dwSize))
-				res = ((PTOKEN_USER)buf)->User.Sid;
-			LocalFree(buf);
-			CloseHandle(hTok);
+			hTok.GetInformation(TokenUser, buf, dwSize, &dwSize);
+
+			return ((PTOKEN_USER)(BYTE*)buf)->User.Sid;
 		}
-		return res;
+		catch (...) {}
+		return nullptr;
 	}
 
 
@@ -42,28 +42,32 @@ namespace user {
 
 		return std::wstring(domain);
 	}
-	std::wstring current_domain() {
-		return get_domain(current_psid());
-	}
-	std::wstring current_name() {
-		return get_name(current_psid());
-	}
+
+	struct {
+		std::wstring domain = get_domain(current_psid());
+		std::wstring operator()() {
+			return domain;
+		}
+	}current_domain;
+
+	struct {
+		std::wstring name = get_name(current_psid());
+		std::wstring operator()() {
+			return name;
+		}
+	}current_name;
+
 
 	signed char IsElevated(DWORD pid) {
-		signed char res = -1;
-		HANDLE hToken = nullptr;
-		if (HANDLE hproc = OpenProcess(THREAD_ALL_ACCESS, FALSE, pid)) {
-			if (OpenProcessToken(hproc, TOKEN_QUERY, &hToken)) {
-				TOKEN_ELEVATION Elevation;
-				DWORD cbSize = sizeof(TOKEN_ELEVATION);
-				if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize))
-					res = (bool)Elevation.TokenIsElevated;
-			}
-			if (hToken) {
-				CloseHandle(hToken);
-			}
-			CloseHandle(hproc);
+		try {
+			Process hProcess(Process::wFLAG_ALL_ACCESS, pid);
+			ProcessToken token(hProcess, ProcessToken::wFLAG_QUERY);
+			TOKEN_ELEVATION Elevation;
+			DWORD cbSize = sizeof(TOKEN_ELEVATION);
+			token.GetInformation(TokenElevation, &Elevation, sizeof(Elevation), &cbSize);
+			return (bool)Elevation.TokenIsElevated;
 		}
-		return res;
+		catch (...){}
+		return -1;
 	}
 }
