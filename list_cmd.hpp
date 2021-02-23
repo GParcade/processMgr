@@ -1,7 +1,6 @@
 #pragma once
 #include <iostream>
 #include <algorithm>
-#include <mutex>
 #include <vector>
 #include "console.hpp"
 #include "windows_enum.hpp"
@@ -26,10 +25,9 @@ namespace list_cmd {
 			std::shared_ptr<std::vector<info_data>> childs;
 
 			info_data(process_info_no_child proc) {
-				if (HANDLE hThread = OpenProcess(THREAD_ALL_ACCESS, FALSE, procID)) {
-					BOOL result = GetProcessMemoryInfo(hThread,
-						&memDetals,
-						sizeof(memDetals));
+				try{
+				Process hThread(Process::wFLAG_ALL_ACCESS, procID);
+					BOOL result = GetProcessMemoryInfo(hThread,&memDetals,sizeof(memDetals));
 					BOOL tmp_bool;
 					threads_count = proc.threads;
 					if (!CheckRemoteDebuggerPresent(hThread, &tmp_bool))
@@ -47,7 +45,7 @@ namespace list_cmd {
 					else
 						is_critical = tmp_bool ? L"C" : L"-";
 				}
-				else {
+				catch(...) {
 					is_under_the_grip_of_a_debugger = L" ";
 					is_above_WOW64_emulator = L" ";
 					threads_count = 0;
@@ -71,8 +69,6 @@ namespace list_cmd {
 					break;
 				case 1:
 					is_evaluated = L"E";
-				default:
-					break;
 				}
 				procName =*proc.proc_name;
 				summoner_name = *proc.summoner_name;
@@ -395,17 +391,16 @@ namespace list_cmd {
 			wprintf(str.c_str());
 		}
 		void print(int64_t integer) {
-			std::wstring str = std::to_wstring(integer);
-			wprintf(str.c_str());
+			wprintf(std::to_wstring(integer).c_str());
 		}
 		void print(out_flags& out_flag, console_pos& pos, info_data& data,size_t pos_offset=0) {
-			if (out_flag.pid)						  {print(data.procID);															print(set_pos_in_line(pos.pid_len + auto_fix_pos));}
-			if (out_flag.nam)						  {print(Unique_color_s(data.procName));										print(set_pos_in_line(pos.nam_len + auto_fix_pos));}
-			if (out_flag.summoner_name)				  {print(Unique_color_s(data.summoner_name)); 									print(set_pos_in_line(pos.unam_len + auto_fix_pos));}
-			if (out_flag.summoner_domain)			  {print(Unique_color_s(data.summoner_domain));									print(set_pos_in_line(pos.udom_len + auto_fix_pos));}
-			if (out_flag.session)					  {print(Unique_color(data.session));											print(set_pos_in_line(pos.ses_len + auto_fix_pos));}
-			if (out_flag.threads)					  {print(Unique_color(data.threads_count));										print(set_pos_in_line(pos.thread_count + auto_fix_pos));}
-			if (out_flag.flags)						  {print(Unique_color_s(data.is_critical)); print(Unique_color_s(data.is_above_WOW64_emulator)); print(Unique_color_s(data.is_under_the_grip_of_a_debugger)); print(Unique_color_s(data.is_evaluated)); print(set_pos_in_line(pos.flags + pos_offset));}
+			if(out_flag.pid)						  {print(data.procID);															print(set_pos_in_line(pos.pid_len + auto_fix_pos));}
+			if(out_flag.nam)						  {print(Unique_color_s(data.procName));										print(set_pos_in_line(pos.nam_len + auto_fix_pos));}
+			if(out_flag.summoner_name)				  {print(Unique_color_s(data.summoner_name)); 									print(set_pos_in_line(pos.unam_len + auto_fix_pos));}
+			if(out_flag.summoner_domain)			  {print(Unique_color_s(data.summoner_domain));									print(set_pos_in_line(pos.udom_len + auto_fix_pos));}
+			if(out_flag.session)					  {print(Unique_color(data.session));											print(set_pos_in_line(pos.ses_len + auto_fix_pos));}
+			if(out_flag.threads)					  {print(Unique_color(data.threads_count));										print(set_pos_in_line(pos.thread_count + auto_fix_pos));}
+			if(out_flag.flags)						  {print(Unique_color_s(data.is_critical)); print(Unique_color_s(data.is_above_WOW64_emulator)); print(Unique_color_s(data.is_under_the_grip_of_a_debugger)); print(Unique_color_s(data.is_evaluated)); print(set_pos_in_line(pos.flags + pos_offset));}
 			if(out_flag.work_mem)					  {print(Unique_color(data.memDetals.WorkingSetSize));  						print(set_pos_in_line( pos.work_mem + auto_fix_pos));}
 			if(out_flag.peak_work_mem)				  {print(Unique_color(data.memDetals.PeakWorkingSetSize));  					print(set_pos_in_line( pos.peak_work+ auto_fix_pos));}
 			if(out_flag.page_faults)				  {print(Unique_color(data.memDetals.PageFaultCount));  						print(set_pos_in_line( pos.page_faults + auto_fix_pos));}
@@ -441,135 +436,129 @@ namespace list_cmd {
 			console_pos max_proc;
 			out_flags out = config_res.first;
 			sort_flags sort = config_res.second;
-
+			bool has_childs=0;
 			{
-				size_t tmp;
 				for (auto& info : all) {
-					tmp = std::to_string(info.threads_count).size();
-					if (max_proc.thread_count < tmp) max_proc.thread_count = tmp + 2;
-
-					tmp = std::to_string(info.session).size();
-					if (max_proc.ses_len < tmp) max_proc.ses_len = tmp + 1;
-
-					tmp = std::to_string(info.procID).size();
-					if (max_proc.pid_len < tmp) max_proc.pid_len = tmp + 1;
-
-					tmp = std::to_string(info.memDetals.PeakWorkingSetSize).size();
-					if (max_proc.peak_work < tmp) max_proc.peak_work = tmp + 1;
-
-					tmp = std::to_string(info.memDetals.WorkingSetSize).size();
-					if (max_proc.work_mem < tmp) max_proc.work_mem = tmp + 1;
-
-
-					tmp = info.summoner_name.size();
-					if (max_proc.unam_len < tmp) max_proc.unam_len = tmp + 1;
-
-
-					tmp = info.summoner_domain.size();
-					if (max_proc.udom_len < tmp) max_proc.udom_len = tmp + 1;
-
-
-					tmp = info.procName.size();
-					if (max_proc.nam_len < tmp) max_proc.nam_len = tmp + 1;
+					if (out.threads)					calculate_max_size(info.threads_count,max_proc.thread_count);
+					if (out.session)					calculate_max_size(info.session, max_proc.ses_len);
+					if (out.pid)						calculate_max_size(info.procID,max_proc.pid_len);
+					if (out.summoner_name)				calculate_max_size(info.summoner_name,max_proc.unam_len );
+					if (out.summoner_domain)			calculate_max_size(info.summoner_domain,max_proc.udom_len );
+					if (out.nam)						calculate_max_size(info.procName, max_proc.nam_len);
+					if (out.page_faults)				calculate_max_size(info.memDetals.PageFaultCount, max_proc.page_faults);
+					if (out.page_file_use)				calculate_max_size(info.memDetals.PagefileUsage, max_proc.page_file_use);
+					if (out.peak_page_file_use)			calculate_max_size(info.memDetals.PeakPagefileUsage, max_proc.peak_page_file_use);
+					if (out.peak_work_mem)				calculate_max_size(info.memDetals.PeakWorkingSetSize, max_proc.peak_work);
+					if (out.quota_non_paged_pool_use)	calculate_max_size(info.memDetals.QuotaNonPagedPoolUsage, max_proc.qota_non_paged_pool_file_use);
+					if (out.quota_non_peak_paged_pool_use)calculate_max_size(info.memDetals.QuotaPeakNonPagedPoolUsage, max_proc.qota_non_peak_paged_pool_file_use);
+					if (out.quota_paged_pool_use)		calculate_max_size(info.memDetals.QuotaPagedPoolUsage, max_proc.qota_paged_pool_file_use);
+					if (out.quota_peak_paged_pool_use)	calculate_max_size(info.memDetals.QuotaPeakPagedPoolUsage, max_proc.qota_peak_paged_pool_file_use);
+					if (out.work_mem)					calculate_max_size(info.memDetals.WorkingSetSize, max_proc.work_mem);
 					if (info.childs) {
 						for (auto& info0 : *info.childs) {
-							tmp = std::to_string(info0.threads_count).size();
-							if (max_proc.thread_count < tmp) max_proc.thread_count = tmp + 2;
-
-							tmp = std::to_string(info0.session).size();
-							if (max_proc.ses_len < tmp) max_proc.ses_len = tmp + 1;
-
-							tmp = std::to_string(info0.procID).size();
-							if (max_proc.pid_len < tmp) max_proc.pid_len = tmp + 1;
-
-							tmp = std::to_string(info0.memDetals.PeakWorkingSetSize).size();
-							if (max_proc.peak_work < tmp) max_proc.peak_work = tmp + 1;
-
-							tmp = std::to_string(info0.memDetals.WorkingSetSize).size();
-							if (max_proc.work_mem < tmp) max_proc.work_mem = tmp + 1;
-
-
-							tmp = info0.summoner_name.size();
-							if (max_proc.unam_len < tmp) max_proc.unam_len = tmp + 1;
-
-
-							tmp = info0.summoner_domain.size();
-							if (max_proc.udom_len < tmp) max_proc.udom_len = tmp + 1;
-
-
-							tmp = info0.procName.size();
-							if (max_proc.nam_len < tmp) max_proc.nam_len = tmp + 1;
+							if (out.threads)					calculate_max_size(info.threads_count, max_proc.thread_count);
+							if (out.session)					calculate_max_size(info.session, max_proc.ses_len);
+							if (out.pid)						calculate_max_size(info.procID, max_proc.pid_len);
+							if (out.summoner_name)				calculate_max_size(info.summoner_name, max_proc.unam_len);
+							if (out.summoner_domain)			calculate_max_size(info.summoner_domain, max_proc.udom_len);
+							if (out.nam)						calculate_max_size(info.procName, max_proc.nam_len);
+							if (out.page_faults)				calculate_max_size(info.memDetals.PageFaultCount, max_proc.page_faults);
+							if (out.page_file_use)				calculate_max_size(info.memDetals.PagefileUsage, max_proc.page_file_use);
+							if (out.peak_page_file_use)			calculate_max_size(info.memDetals.PeakPagefileUsage, max_proc.peak_page_file_use);
+							if (out.peak_work_mem)				calculate_max_size(info.memDetals.PeakWorkingSetSize, max_proc.peak_work);
+							if (out.quota_non_paged_pool_use)	calculate_max_size(info.memDetals.QuotaNonPagedPoolUsage, max_proc.qota_non_paged_pool_file_use);
+							if (out.quota_non_peak_paged_pool_use)calculate_max_size(info.memDetals.QuotaPeakNonPagedPoolUsage, max_proc.qota_non_peak_paged_pool_file_use);
+							if (out.quota_paged_pool_use)		calculate_max_size(info.memDetals.QuotaPagedPoolUsage, max_proc.qota_paged_pool_file_use);
+							if (out.quota_peak_paged_pool_use)	calculate_max_size(info.memDetals.QuotaPeakPagedPoolUsage, max_proc.qota_peak_paged_pool_file_use);
+							if (out.work_mem)					calculate_max_size(info.memDetals.WorkingSetSize, max_proc.work_mem);
+							has_childs = 1;
 						}
 					}
 				}
+				max_proc.flags++;
+				max_proc.nam_len++;
+				max_proc.page_faults++;
+				max_proc.page_file_use++;
+				max_proc.peak_work++;
+				max_proc.pid_len++;
+				max_proc.qota_non_paged_pool_file_use++;
+				max_proc.qota_non_peak_paged_pool_file_use++;
+				max_proc.qota_paged_pool_file_use++;
+				max_proc.qota_peak_paged_pool_file_use++;
+				max_proc.ses_len++;
+				max_proc.thread_count++;
+				max_proc.udom_len++;
+				max_proc.unam_len++;
+				max_proc.work_mem++;
 			}
 
 			{
 //for childs
-#define auto_fix_pos + (first ? 5 : 0)
-				size_t tmp = 0; 
+#define auto_fix_pos (has_childs ? ([&has_childs](){has_childs=0;return 5;}()) : 0)
+				size_t tmp = 0;
 				bool first = 1;
 				if (out.pid) {
-					tmp += max_proc.pid_len auto_fix_pos;
+					tmp += max_proc.pid_len + auto_fix_pos;
 				}
 				if (out.nam) {
-					tmp += max_proc.nam_len auto_fix_pos;
-					max_proc.nam_len = tmp ;
+					tmp += max_proc.nam_len + auto_fix_pos;
+					max_proc.nam_len = tmp;
 				}
 				if (out.summoner_name) {
-					tmp += max_proc.unam_len auto_fix_pos;
+					tmp += max_proc.unam_len + auto_fix_pos;
 					max_proc.unam_len = tmp;
 				}
 				if (out.summoner_domain) {
-					tmp += max_proc.udom_len auto_fix_pos;
+					tmp += max_proc.udom_len + auto_fix_pos;
 					max_proc.udom_len = tmp;
 				}
 				if (out.session) {
-					tmp += max_proc.ses_len auto_fix_pos;
+					tmp += max_proc.ses_len + auto_fix_pos;
 					max_proc.ses_len = tmp;
 				}
 				if (out.threads) {
-					tmp += max_proc.thread_count auto_fix_pos;
+					tmp += max_proc.thread_count + auto_fix_pos;
 					max_proc.thread_count = tmp;
 				}
 				if (out.flags) {
-					tmp += max_proc.flags auto_fix_pos;
+					tmp += max_proc.flags + auto_fix_pos;
 					max_proc.flags+= tmp;
 				}
 				if (out.work_mem) {
-					tmp += max_proc.work_mem auto_fix_pos;
+					tmp += max_proc.work_mem + auto_fix_pos;
 					max_proc.work_mem = tmp;
+					first = 0;
 				}
 				if (out.peak_work_mem) {
-					tmp += max_proc.peak_work auto_fix_pos;
+					tmp += max_proc.peak_work + auto_fix_pos;
 					max_proc.peak_work = tmp;
 				}
 				if (out.page_faults) {
-					tmp += max_proc.page_faults auto_fix_pos;
+					tmp += max_proc.page_faults + auto_fix_pos;
 					max_proc.page_faults = tmp;
 				}
 				if (out.page_file_use) {
-					tmp += max_proc.page_file_use auto_fix_pos;
+					tmp += max_proc.page_file_use + auto_fix_pos;
 					max_proc.page_file_use = tmp;
 				}
 				if (out.peak_page_file_use) {
-					tmp += max_proc.peak_page_file_use auto_fix_pos;
+					tmp += max_proc.peak_page_file_use + auto_fix_pos;
 					max_proc.peak_page_file_use = tmp;
 				}
 				if (out.quota_non_paged_pool_use) {
-					tmp += max_proc.qota_non_paged_pool_file_use auto_fix_pos;
+					tmp += max_proc.qota_non_paged_pool_file_use + auto_fix_pos;
 					max_proc.qota_non_paged_pool_file_use = tmp;
 				}
 				if (out.quota_paged_pool_use) {
-					tmp += max_proc.qota_paged_pool_file_use auto_fix_pos;
+					tmp += max_proc.qota_paged_pool_file_use ;
 					max_proc.work_mem = tmp ;
 				}
 				if (out.quota_non_peak_paged_pool_use) {
-					tmp += max_proc.qota_non_peak_paged_pool_file_use auto_fix_pos;
+					tmp += max_proc.qota_non_peak_paged_pool_file_use + auto_fix_pos;
 					max_proc.qota_non_peak_paged_pool_file_use = tmp;
 				}
 				if (out.quota_peak_paged_pool_use) {
-					tmp += max_proc.qota_peak_paged_pool_file_use auto_fix_pos;
+					tmp += max_proc.qota_peak_paged_pool_file_use + auto_fix_pos;
 					max_proc.qota_peak_paged_pool_file_use = tmp;
 				}
 #undef auto_fix_pos
