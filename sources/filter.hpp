@@ -5,6 +5,7 @@
 #include "multi_thread_for.hpp"
 #include "windows_enum.hpp"
 
+#define switch_val(value) (value = !value)
 namespace filter {
 	class Invalid_filter : public std::exception {
 		const std::wstring _reason;
@@ -132,45 +133,45 @@ namespace filter {
 			else {
 				std::wstring token;
 				for (size_t i = 0; i < filter_size; i++) {
-					token = get_token(filter, filter_size, i, has_next);
+					token = to_low(get_token(filter, filter_size, i, has_next));
 					if (token.empty())
 						continue;
-					if (token == L"Users" || token == L"User" || token == L"U") {
+					if (token == L"users" || token == L"user" || token == L"u") {
 						do {
 							token = get_token(filter, filter_size, i, has_next);
 							if (!token.empty())
 								started_by.names.push_back(token);
 						} while (has_next && i < filter_size);
 					}
-					else if (token == L"Groups" || token == L"Group" || token == L"G") {
+					else if (token == L"groups" || token == L"group" || token == L"g") {
 						do {
 							token = get_token(filter, filter_size, i, has_next);
 							if (!token.empty())
 								started_by.groups.push_back(token);
 						} while (has_next && i < filter_size);
 					}
-					else if (token == L"Domains" || token == L"Domain" || token == L"D") {
+					else if (token == L"domains" || token == L"domain" || token == L"d") {
 						do {
 							token = get_token(filter, filter_size, i, has_next);
 							if (!token.empty())
 								started_by.domains.push_back(token);
 						} while (has_next && i < filter_size);
 					}
-					else if (token == L"Names" || token == L"Name" || token == L"N") {
+					else if (token == L"names" || token == L"name" || token == L"n") {
 						do {
 							token = get_token(filter, filter_size, i, has_next);
 							if (!token.empty())
 								name_index.names.push_back(token);
 						} while (has_next && i < filter_size);
 					}
-					else if (token == L"Windows" || token == L"Wind" || token == L"W") {
+					else if (token == L"windows" || token == L"wind" || token == L"w") {
 						do {
 							token = get_token(filter, filter_size, i, has_next);
 							if (!token.empty())
 								name_index.wnames.push_back(token);
 						} while (has_next && i < filter_size);
 					}
-					else if (token == L"Indefiners" || token == L"Indefiner" || token == L"Id" || token == L"I") {
+					else if (token == L"indefiners" || token == L"indefiner" || token == L"id" || token == L"i") {
 						do {
 							token = get_token(filter, filter_size, i, has_next);
 							try {
@@ -179,15 +180,15 @@ namespace filter {
 							catch (...) {}
 						} while (has_next && i < filter_size);
 					}
-					else if (token == L"Configs" || token == L"Config" || token == L"C") {
+					else if (token == L"configs" || token == L"config" || token == L"c") {
 						do {
 							token = get_token(filter, filter_size, i, has_next);
 							if (token == L"mname_window")
-								config.match_windows = 1;
+								switch_val(config.match_windows);
 							else if (token == L"mname_process")
-								config.match_process = 1;
+								switch_val(config.match_process);
 							else if (token == L"use_similar")
-								config.similar = 1;
+								switch_val(config.similar);
 							else if (token == L"similar_threshold") {
 								try {
 									config.threshold = stoull(token);
@@ -198,7 +199,7 @@ namespace filter {
 							else throw Invalid_filter(token);
 						} while (has_next && i < filter_size);
 					}
-					else if (token == L"Miscs" || token == L"Misc" || token == L"M") {
+					else if (token == L"miscs" || token == L"misc" || token == L"m") {
 						do {
 							token = get_token(filter, filter_size, i, has_next);
 							if (token == L"priority") {

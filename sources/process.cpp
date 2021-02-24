@@ -35,110 +35,116 @@ void init_locale() {
 		exit(0xAAAAAAAAAAAA);
 }
 
-typedef LONG(NTAPI* _NtSuspendProcess)(IN HANDLE ProcessHandle);
+namespace help_cmd {
+	void help_commads() {
+		std::wcout << reset_color <<
+			"Commands:\n"
+			"\t  list " << rgb_color_text(207, 207, 207) << "\"list options\" \"filters\"\n\n" << reset_color <<
+			"\t  kill \"name\"\n"
+			"\t  killF \"filters\"\n\n"
+			"\t  summon \"path / alias\" " << rgb_color_text(207, 207, 207) << "privilege\n\n" << reset_color <<
+			"\t  freze \"name\"\n"
+			"\t  frezeF \"filters\"\n"
+			"\t  \tPause proces/ses\n\n"
+			"\t  unfreze \"name\"\n"
+			"\t  unfrezeF \"filters\"\n"
+			"\t  \tContinue run proces/ses\n\n";
+	}
 
-void help_commads() {
-	std::wcout << reset_color <<
-		"Commands:\n"
-		"\t  list " << rgb_color_text(207, 207, 207) << "\"sorter options\" \"filters\"\n\n" << reset_color <<
-		"\t  kill \"name\"\n"
-		"\t  killF \"filters\"\n\n"
-		"\t  summon \"path / alias\" " << rgb_color_text(207, 207, 207) << "privilege\n\n" << reset_color <<
-		"\t  freze \"name\"\n"
-		"\t  frezeF \"filters\"\n"
-		"\t  \tPause proces/ses\n\n"
-		"\t  unfreze \"name\"\n"
-		"\t  unfrezeF \"filters\"\n"
-		"\t  \tContinue run proces/ses\n\n";
-}
+	void help_filters() {
+		std::wcout <<
+			"Filters: 123\n"
+			"\t (empty) ->  use default\n"
+			"\t - ->  use default\n"
+			"\t * ->  no filter\n"
+			"\t "
+			<< rgb_color_text(50, 255, 50) << "U" << reset_color <<
+			"sers{\"1\",\"2\",\"3\"} -> started by \"name\" filter\n"
+			"\t\t (empty)  ->  current user[default]\n"
+			"\t\t *        ->  by any[default if defined "
+			<< rgb_color_text(255, 0, 0) << "G" << reset_color << "roup filter without "
+			<< rgb_color_text(50, 255, 50) << "U" << reset_color <<
+			"ser]\n\n\t "
+			<< rgb_color_text(80, 140, 255) << "N" << reset_color << "ames{\"1\",\"2\",\"3\"} ->  name filter\n\n\t "
+			<< rgb_color_text(80, 140, 255) << "W" << reset_color << "indows{\"1\",\"2\",\"3\"} ->  process windows name filter\n\n\t "
+//			<< rgb_color_text(255, 0, 0) << "G" << reset_color << "roup{\'1\',\"2\",\"3\"} ->  group filter\n"      TO-Do
+//			"\t\t (empty)       ->  all[default]\n"
+//			"\t\t *group_name*  ->  add to filter this group\n\n\t "
+			<< rgb_color_text(0, 120, 120) << "D" << reset_color << "omain{\'1\',\"2\",\"3\"} ->  domain filter\n"
+			"\t\t (empty)       ->  all[default]\n"
+			"\t\t *domain_name*  ->  add to filter this domain\n\n\t "
+			//	<< rgb_color_text(180, 255, 30) << "M" << reset_color <<
+			//		"isc{1,2,3} ->  Misc filter\n"
+			//		"\t\t priority{}             -> All ptioritys: {realtime,height,heigh_avg,default,low_avg,low}\n"
+			//		"\t\t cpu_min{\"float 0-100\"}   -> Selects all processes using CPU load from percent\n"
+			//		"\t\t cpu_max{\"float 0-100\"}   -> Selects all processes using CPU load to percent\n"
+			//		"\t\t evaluated              -> Select process evaluated to admin rights\n\n\t "
+			<< rgb_color_text(255, 180, 30) << "C" << reset_color <<
+			"onfig{1,2,3} ->  filter configuration\n"
+			//		"\t\t ignore_child              -> do not touch childs\n"     TO-Do
+			"\t\t similar_threshold{\"int\"}-> \"Similary\" threshold\n"
+			"\t\t use_similar{\"int\"}      -> Use similary comparer\n\n";
+	}
 
-void help_filters() {
-	std::wcout <<
-		"Filters: 123\n"
-		"\t (empty) ->  use default\n"
-		"\t - ->  use default\n"
-		"\t * ->  no filter\n"
-		"\t "
-	<< rgb_color_text(50, 255, 50) << "U" << reset_color <<
-		"sers{\"1\",\"2\",\"3\"} -> started by \"name\" filter\n"
-		"\t\t (empty)  ->  current user[default]\n"
-		"\t\t *        ->  by any[default if defined "
-		<< rgb_color_text(255, 0, 0) << "G" << reset_color << "roup filter without "
-		<< rgb_color_text(50, 255, 50) << "U" << reset_color <<
-		"ser]\n\n\t "
-	<< rgb_color_text(80, 140, 255) << "N" << reset_color << "ames{\"1\",\"2\",\"3\"} ->  name filter\n\n\t "
-		<< rgb_color_text(80, 140, 255) << "W" << reset_color << "indows{\"1\",\"2\",\"3\"} ->  process windows name filter\n\n\t "
-	<< rgb_color_text(255, 0, 0) << "G" << reset_color << "roup{\'1\',\"2\",\"3\"} ->  group filter\n"
-		"\t\t (empty)       ->  all[default]\n"
-		"\t\t *group_name*  ->  add to filter this group\n\n\t "
-	<< rgb_color_text(0, 120, 120) << "D" << reset_color << "omain{\'1\',\"2\",\"3\"} ->  domain filter\n"
-		"\t\t (empty)       ->  all[default]\n"
-		"\t\t *domain_name*  ->  add to filter this domain\n\n\t "
-//	<< rgb_color_text(180, 255, 30) << "M" << reset_color <<
-//		"isc{1,2,3} ->  Misc filter\n"
-//		"\t\t priority{}             -> All ptioritys: {realtime,height,heigh_avg,default,low_avg,low}\n"
-//		"\t\t cpu_min{\"float 0-100\"}   -> Selects all processes using CPU load from percent\n"
-//		"\t\t cpu_max{\"float 0-100\"}   -> Selects all processes using CPU load to percent\n"
-//		"\t\t evaluated              -> Select process evaluated to admin rights\n\n\t "
-	<< rgb_color_text(255, 180, 30) << "C" << reset_color <<
-		"onfig{1,2,3} ->  filter configuration\n"
-//		"\t\t ignore_child              -> do not touch childs\n"     TO-Do
-		"\t\t similar_threshold{\"int\"}-> \"Similary\" threshold\n"
-		"\t\t use_similar{\"int\"}      -> Use similary comparer\n\n";
-}
-
-void help_privlegies() {
-	std::wcout <<
-		"Privileges 1:\n"
-		"\t  any ->  current user\n"
-		//"\t  n/N ->  NT privlege\t\t! only administrator can do it\n"
-		"\t  a/A ->  administrator privlege\n\n";
+	void help_privlegies() {
+		std::wcout <<
+			"Privileges 1:\n"
+			"\t  any ->  current user\n"
+			//"\t  n/N ->  NT privlege\t\t! only administrator can do it\n"
+			"\t  a/A ->  administrator privlege\n\n";
 		//"\t  u/U ->  current user without any perm\n\n";
+	}
+
+	void help_list() {
+		std::wcout <<
+			"List options: 1,2,3\n"
+			"\t  * ->  use all labels and name sort\n"
+			"\t Label ids:\n"
+			"\t\t name        -> Process name\n"
+			"\t\t proc_id     -> Process indifiner\n"
+			"\t\t page_fault  -> Page fault\n"
+			"\t\t page_use    -> Pages used\n"
+			"\t\t peak_work   -> Peak woring memory set\n"
+			"\t\t qnppu       -> Quota non paged pool usage\n"
+			"\t\t qnpppu      -> Quota non peak paged pool usage\n"
+			"\t\t qppu        -> Quota paged pool usage\n"
+			"\t\t qpppu       -> Quota peak paged pool usage\n"
+			"\t\t session     -> User session id\n"
+			"\t\t creator_dom -> Created process user domain\n"
+			"\t\t creator_nam -> Created process user name\n"
+			"\t\t threads     -> Threads count\n"
+			"\t\t flags       -> Misc process flags (not work for sort)\n"
+			"\t\t work_mem    -> Working mem set\n\n"
+			"\t  " << rgb_color_text(50, 50, 255) << "S" << reset_color << "ort{'1','2'}\n"
+			"\t\t  - ->  use default\n"
+			"\t\t  direction_to_down ->  use sort form up to down [default]\n"
+			"\t\t  direction_to_up   ->  use sort form down to up\n"
+			"\t\t  *Label*           ->  label id [default is name]\n\n"
+			"\t  " << rgb_color_text(255, 0, 50) << "O" << reset_color << "ut{'1','2','3'...} -> show label if defined\n"
+			"\t\t  - ->  use default\n"
+			"\t\t  use_color  -> paint all strings to unique rgb color\n"
+			"\t\t  *Label*,** ->  label ids [default is {'name','proc_id','creator_nam','session','work_mem'}]\n\n"
+			;
+	}
+
+	void help() {
+		std::wcout << reset_color;
+		help_commads();
+		help_filters();
+		help_privlegies();
+		help_list();
+	}
+
+
+	void help(std::wstring sub_cmd) {
+		sub_cmd = to_low(sub_cmd);
+		if (sub_cmd == L"cmds" || sub_cmd == L"commands") help_commads();
+		else if (sub_cmd == L"filters") help_filters();
+		else if (sub_cmd == L"priv" || sub_cmd == L"privlegies") help_privlegies();
+		else if (sub_cmd == L"lopt" || sub_cmd == L"list_opt") help_list();
+		else help();
+	}
 }
-
-void help_list() {
-	std::wcout <<
-		"List options: 1,2,3\n"
-		"\t  * ->  use all labels and name sort\n"
-		"\t Label ids:\n"
-		"\t\t name        -> Process name\n"
-		"\t\t proc_id     -> Process indifiner\n"
-		"\t\t page_fault  -> Page fault\n"
-		"\t\t page_use    -> Pages used\n"
-		"\t\t peak_work   -> Peak woring memory set\n"
-		"\t\t qnppu       -> Quota non paged pool usage\n"
-		"\t\t qnpppu      -> Quota non peak paged pool usage\n"
-		"\t\t qppu        -> Quota paged pool usage\n"
-		"\t\t qpppu       -> Quota peak paged pool usage\n"
-		"\t\t session     -> User session id\n"
-		"\t\t creator_dom -> Created process user domain\n"
-		"\t\t creator_nam -> Created process user name\n"
-		"\t\t threads     -> Threads count\n"
-		"\t\t flags       -> Misc process flags (not work for sort)\n"
-		"\t\t work_mem    -> Working mem set\n\n"
-		"\t  " << rgb_color_text(50, 50 , 255) << "S" << reset_color << "ort{'1','2'}\n"
-		"\t\t  - ->  use default\n"
-		"\t\t  direction_to_down ->  use sort form up to down [default]\n"
-		"\t\t  direction_to_up   ->  use sort form down to up\n"
-		"\t\t  *Label*           ->  label id [default is name]\n\n"
-		"\t  " << rgb_color_text(255, 0, 50) << "O" << reset_color << "ut{'1','2','3'...} -> show label if defined\n"
-		"\t\t  - ->  use default\n"
-		"\t\t  use_color  -> paint all strings to unique rgb color\n"
-		"\t\t  *Label*,** ->  label ids [default is {'name','proc_id','creator_nam','session','work_mem'}]\n\n"
-		;
-}
-
-
-
-
-void help() {
-	std::wcout << reset_color;
-	help_commads();
-	help_filters();
-	help_privlegies();
-	help_list();
-}
-
 
 
 template<class process_type> 
@@ -374,9 +380,8 @@ void summon(std::wstring options,std::wstring privlegies) {
 		ShellExecuteW(nullptr, L"open", options.c_str(), NULL, NULL, SW_RESTORE);
 }
 
-void run_cmd(std::vector<std::wstring>& cmds) {
-	if (cmds[0] == L"-?") help();
-	else if (cmds[0] == L"help") help();
+void run_cmd(std::vector<std::wstring>& cmds,std::wstring path) {
+	if (cmds[0] == L"-?"|| cmds[0] == L"/?"|| cmds[0] == L"help") help_cmd::help(cmds[1]);
 	else if (cmds[0] == L"list") list(cmds[1], cmds[2]);
 	else if (cmds[0] == L"kill") kill_cmd::kill(cmds[1]);
 	else if (cmds[0] == L"killF") kill_cmd::killF(cmds[1]);
@@ -387,8 +392,7 @@ void run_cmd(std::vector<std::wstring>& cmds) {
 	else if (cmds[0] == L"unfreezeF") freeze_cmd::unfreezeF(cmds[1]);
 	else {
 		std::wcout <<
-			"Invalid argument, not found command\n";
-		help();
+			L"Invalid argument, not found command, print " + path + L" help for get all cmds and options\n";
 	}
 }
 
@@ -399,7 +403,7 @@ int wmain(int agrc, const wchar_t* agrv[]){
 		cmd.erase(cmd.begin());
 		cmd.resize(4);
 		try {
-			run_cmd(cmd);
+			run_cmd(cmd, agrv[0]);
 		}
 		catch (filter::Invalid_filter& f) {
 			std::wcout <<"Exception(Invalid_filter): "<< f.reason();
@@ -413,6 +417,6 @@ int wmain(int agrc, const wchar_t* agrv[]){
 		}
 		return 0;
 	}
-	else help();
+	else help_cmd::help();
 	return 0;
 }

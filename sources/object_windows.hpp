@@ -87,6 +87,9 @@ public:
 		token = move.token;
 		move.token = nullptr;
 	}
+	ProcessToken() {
+		token = GetCurrentProcessToken();
+	}
 	~ProcessToken() {
 		if (token)
 			CloseHandle(token);

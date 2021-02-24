@@ -303,65 +303,79 @@ namespace list_cmd {
 				std::wstring token;
 				size_t filter_size = filter.size();
 				bool has_next = 0;
+				bool has_out = 0;
+				bool has_sort = 0;
 				for (size_t i = 0; i < filter_size; i++) {
-					token = filter::get_token(filter, filter_size, i, has_next);
-					if (token == L"Out" || token == L"O") {
+					token = to_low(filter::get_token(filter, filter_size, i, has_next));
+					if (token == L"out" || token == L"o") {
+						has_out = 1;
 						do {
-							token = filter::get_token(filter, filter_size, i, has_next);
+							token = to_low(filter::get_token(filter, filter_size, i, has_next));
 							if (token.empty())
-								token = filter::get_token(filter, filter_size, i, has_next);
-							else if (token == L"name")		 out_res.nam = 1;
-							else if (token == L"proc_id")	 out_res.pid = 1;
-							else if (token == L"page_fault") out_res.page_faults = 1;
-							else if (token == L"page_use")   out_res.page_file_use = 1;
-							else if (token == L"peak_work")	 out_res.peak_work_mem = 1;
-							else if (token == L"qnppu")		 out_res.quota_non_paged_pool_use = 1;
-							else if (token == L"qnpppu")	 out_res.quota_non_peak_paged_pool_use = 1;
-							else if (token == L"qppu")		 out_res.quota_paged_pool_use = 1;
-							else if (token == L"qpppu")		 out_res.quota_peak_paged_pool_use = 1;
-							else if (token == L"session")	 out_res.session = 1;
-							else if (token == L"creator_dom")out_res.summoner_domain = 1;
-							else if (token == L"creator_nam")out_res.summoner_name = 1;
-							else if (token == L"threads")	 out_res.threads = 1;
-							else if (token == L"work_mem")	 out_res.work_mem = 1;
-							else if (token == L"use_color")	 out_res.use_color = 1;
-							else if (token == L"flags")		 out_res.flags = 1;
+								token = to_low(filter::get_token(filter, filter_size, i, has_next));
+							else if (token == L"name")		 switch_val(out_res.nam);
+							else if (token == L"proc_id")	 switch_val(out_res.pid);
+							else if (token == L"page_fault") switch_val(out_res.page_faults);
+							else if (token == L"page_use")   switch_val(out_res.page_file_use);
+							else if (token == L"peak_work")	 switch_val(out_res.peak_work_mem);
+							else if (token == L"qnppu")		 switch_val(out_res.quota_non_paged_pool_use);
+							else if (token == L"qnpppu")	 switch_val(out_res.quota_non_peak_paged_pool_use);
+							else if (token == L"qppu")		 switch_val(out_res.quota_paged_pool_use);
+							else if (token == L"qpppu")		 switch_val(out_res.quota_peak_paged_pool_use);
+							else if (token == L"session")	 switch_val(out_res.session);
+							else if (token == L"creator_dom")switch_val(out_res.summoner_domain);
+							else if (token == L"creator_nam")switch_val(out_res.summoner_name);
+							else if (token == L"threads")	 switch_val(out_res.threads);
+							else if (token == L"work_mem")	 switch_val(out_res.work_mem);
+							else if (token == L"use_color")	 switch_val(out_res.use_color);
+							else if (token == L"flags")		 switch_val(out_res.flags);
 							else if (token == L"-") {
-															 out_res.nam = 1;
-															 out_res.pid = 1;
-															 out_res.summoner_name = 1;
-															 out_res.session = 1;
-															 out_res.work_mem = 1;
-															 out_res.use_color = 1;
+															switch_val(out_res.nam);
+															switch_val(out_res.pid);
+															switch_val(out_res.summoner_name);
+															switch_val(out_res.session);
+															switch_val(out_res.work_mem);
+															switch_val(out_res.use_color);
 							}
 						} while (has_next && i < filter_size);
 					}
-					if (token == L"Sort" || token == L"S") {
+					if (token == L"sort" || token == L"s") {
+						has_sort = 1;
 						do {
-							token = filter::get_token(filter, filter_size, i, has_next);
+							token = to_low(filter::get_token(filter, filter_size, i, has_next));
 							if (token.empty())
-								token = filter::get_token(filter, filter_size, i, has_next);
-							else if (token == L"name")				sort_res.nam = 1;
-							else if (token == L"proc_id")			sort_res.pid = 1;
-							else if (token == L"page_fault")		sort_res.page_faults = 1;
-							else if (token == L"page_use")			sort_res.page_file_use = 1;
-							else if (token == L"peak_work")			sort_res.peak_work_mem = 1;
-							else if (token == L"qnppu")				sort_res.quota_non_paged_pool_use = 1;
-							else if (token == L"qnpppu")			sort_res.quota_non_peak_paged_pool_use = 1;
-							else if (token == L"qppu")				sort_res.quota_paged_pool_use = 1;
-							else if (token == L"qpppu")				sort_res.quota_peak_paged_pool_use = 1;
-							else if (token == L"session")			sort_res.session = 1;
-							else if (token == L"creator_dom")		sort_res.summoner_domain = 1;
-							else if (token == L"creator_nam")		sort_res.summoner_name = 1;
-							else if (token == L"threads")			sort_res.threads = 1;
-							else if (token == L"work_mem")			sort_res.work_mem = 1;
+								token = to_low(filter::get_token(filter, filter_size, i, has_next));
+							else if (token == L"name")				switch_val(sort_res.nam);
+							else if (token == L"proc_id")			switch_val(sort_res.pid);
+							else if (token == L"page_fault")		switch_val(sort_res.page_faults);
+							else if (token == L"page_use")			switch_val(sort_res.page_file_use);
+							else if (token == L"peak_work")			switch_val(sort_res.peak_work_mem);
+							else if (token == L"qnppu")				switch_val(sort_res.quota_non_paged_pool_use);
+							else if (token == L"qnpppu")			switch_val(sort_res.quota_non_peak_paged_pool_use);
+							else if (token == L"qppu")				switch_val(sort_res.quota_paged_pool_use);
+							else if (token == L"qpppu")				switch_val(sort_res.quota_peak_paged_pool_use);
+							else if (token == L"session")			switch_val(sort_res.session);
+							else if (token == L"creator_dom")		switch_val(sort_res.summoner_domain);
+							else if (token == L"creator_nam")		switch_val(sort_res.summoner_name);
+							else if (token == L"threads")			switch_val(sort_res.threads);
+							else if (token == L"work_mem")			switch_val(sort_res.work_mem);
 							else if (token == L"direction_to_down")	sort_res.direction = 1;
 							else if (token == L"direction_to_up")	sort_res.direction = 0;
-							else if (token == L"-")					sort_res.nam = 1;
+							else if (token == L"-")					switch_val(sort_res.nam);
 						} while (has_next && i < filter_size);
 
 					}
 				}
+				if (!has_out) {
+					out_res.nam = 1;
+					out_res.pid = 1;
+					out_res.summoner_name = 1;
+					out_res.session = 1;
+					out_res.work_mem = 1;
+					out_res.use_color = 1;
+				}
+				if (!has_sort)
+					sort_res.nam = 1;
 			}
 			return { out_res, sort_res };
 		}
