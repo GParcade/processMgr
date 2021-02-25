@@ -1,4 +1,4 @@
-# processM
+# processMgr
 Console tool for manage processes with filters
 
 ![Process tree system](images/tree.png)
@@ -12,6 +12,6 @@ You can use path for first argument in console / terminal or place executable fi
 
 For get help use
 ```powershell
-processm help
+processmgr help
 ```
 processm is filename from PATH directory
