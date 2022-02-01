@@ -398,6 +398,12 @@ void run_cmd(std::vector<std::wstring>& cmds,std::wstring path) {
 
 int wmain(int agrc, const wchar_t* agrv[]){
 	init_locale();
+
+	if(!SetConsoleMode(GetConsoleWindow(), ENABLE_VIRTUAL_TERMINAL_INPUT)) {
+		std::wcout << "Supported Windows 10 and up" << std::endl;
+		return -1;
+	}
+	
 	if (agrc > 1) {
 		std::vector<std::wstring>cmd(agrv, agrv + agrc);
 		cmd.erase(cmd.begin());
